@@ -143,12 +143,11 @@ func (a ApiInfo) GetBalances() ([]binance.Balance, error) {
 	}
 
 	for _, elem := range res.Balances {
-
 		free, err := strconv.ParseFloat(elem.Free, 64)
 		if err != nil {
 			return balances, err
 		}
-		locked, err := strconv.ParseFloat(elem.Free, 64)
+		locked, err := strconv.ParseFloat(elem.Locked, 64)
 		if err != nil {
 			return balances, err
 		}

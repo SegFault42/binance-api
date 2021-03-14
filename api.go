@@ -1,4 +1,4 @@
-package api
+package binance-api
 
 import (
 	"context"

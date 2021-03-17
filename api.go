@@ -115,9 +115,16 @@ func (a ApiInfo) PlaceOrderMarket(action binance.SideType, pair, quantity, mode 
 
 }
 
-func (a ApiInfo) GetOrders(pair string) ([]*binance.Order, error) {
-	return a.client.NewListOrdersService().Symbol(pair).Do(context.Background())
+func (a ApiInfo) GetOrders() ([]*binance.Order, error) {
+	return a.client.NewListOrdersService().Do(context.Background())
 }
+
+func (a ApiInfo) GetOpenOrders() ([]*binance.Order, error) {
+	return a.client.NewListOpenOrdersService().Do(context.Background())
+}
+
+//func ListOpenOrder(pair string) {
+//}
 
 // func ListOrder(pair string) error {
 

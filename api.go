@@ -18,11 +18,12 @@ type ApiInfo struct {
 	client *binance.Client
 }
 
-func New() ApiInfo {
+func New() (ApiInfo, error) {
+	var err error
 	apiInfo := ApiInfo{client: binance.NewClient(apiKey, secretKey)}
-	apiInfo.client.NewSetServerTimeService().Do(context.Background())
+	apiInfo.client.TimeOffset, err = apiInfo.client.NewSetServerTimeService().Do(context.Background())
 
-	return apiInfo
+	return apiInfo, err
 }
 
 // func GetNewClient() {

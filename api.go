@@ -138,6 +138,7 @@ func (a ApiInfo) GetOpenOrders() ([]*binance.Order, error) {
 // 	return nil
 // }
 
+// GetBalances return all more than 0 balance)
 func (a ApiInfo) GetBalances() ([]binance.Balance, error) {
 
 	var balances []binance.Balance
@@ -165,15 +166,20 @@ func (a ApiInfo) GetBalances() ([]binance.Balance, error) {
 	return balances, err
 }
 
-func (a ApiInfo) GetBalance(asset string, balances []binance.Balance) binance.Balance {
+// GetBalance return the balance of the given asset
+func (a ApiInfo) GetBalance(asset string) (binance.Balance, error) {
 
+	balances, err := a.GetBalances()
+	if err != nil {
+		return binance.Balance{}, err
+	}
 	for _, elem := range balances {
 		if elem.Asset == asset {
-			return elem
+			return elem, nil
 		}
 	}
 
-	return binance.Balance{}
+	return binance.Balance{}, nil
 }
 
 func (a ApiInfo) GetInfoService() (*binance.ExchangeInfo, error) {

@@ -94,14 +94,14 @@ func (a ApiInfo) PlaceOrderLimit(action binance.SideType, pair, quantity, price,
 }
 
 // PlaceOrderMarket will buy to the marketPrice
-// Quantity is in coin quantity
+// Quantity is in coin quantity. Example : buy AUDIOBTC, must init quantity with BTC amount
 func (a ApiInfo) PlaceOrderMarket(action binance.SideType, pair, quantity, mode string) (*binance.CreateOrderResponse, error) {
 
 	var order *binance.CreateOrderResponse
 	var err error
 
 	req := a.client.NewCreateOrderService().Symbol(pair).
-		Side(action).Type(binance.OrderTypeMarket).Quantity(quantity)
+		Side(action).Type(binance.OrderTypeMarket).QuoteOrderQty(quantity)
 
 	if mode == "real" {
 		order, err = req.Do(context.Background())
@@ -206,4 +206,20 @@ func (a ApiInfo) GetTickerPrice(pair string) (string, error) {
 		}
 	}
 	return "", nil
+}
+
+// WsGetCoinPrice return a struct with all real time event
+// send adress to price (&price)
+func WsGetCoinPrice(pair string, evt *binance.WsAggTradeEvent) {
+	wsDepthHandler := func(event *binance.WsAggTradeEvent) {
+		*evt = *event
+	}
+	errHandler := func(err error) {
+		log.Println(err)
+	}
+	_, _, err := binance.WsAggTradeServe(pair, wsDepthHandler, errHandler)
+	if err != nil {
+		log.Println(err)
+		return
+	}
 }

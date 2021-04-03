@@ -15,14 +15,14 @@ var (
 )
 
 type ApiInfo struct {
-	client *binance.Client
+	Client *binance.Client
 }
 
 func New() ApiInfo {
-	apiInfo := ApiInfo{client: binance.NewClient(apiKey, secretKey)}
+	apiInfo := ApiInfo{Client: binance.NewClient(apiKey, secretKey)}
 
 	//Sync time with binance server time
-	apiInfo.client.NewSetServerTimeService().Do(context.Background())
+	apiInfo.Client.NewSetServerTimeService().Do(context.Background())
 
 	return apiInfo
 }
@@ -34,7 +34,7 @@ func New() ApiInfo {
 // limit = number of iteration (Optional)
 func (a ApiInfo) GetDepth(symbol, interval string, startTime int64, limit int) ([]*binance.Kline, error) {
 
-	klines := a.client.NewKlinesService()
+	klines := a.Client.NewKlinesService()
 	klines = klines.Symbol(symbol)
 	klines = klines.Interval(interval)
 
@@ -56,7 +56,7 @@ func (a ApiInfo) GetDepth(symbol, interval string, startTime int64, limit int) (
 // GetCurrentPrice This function get the last price on binance
 func (a ApiInfo) GetCurrentPrice(symbol string) (*binance.SymbolPrice, error) {
 
-	prices, err := a.client.NewListPricesService().Do(context.Background())
+	prices, err := a.Client.NewListPricesService().Do(context.Background())
 	if err != nil {
 		return nil, err
 	}
@@ -78,7 +78,7 @@ func (a ApiInfo) PlaceOrderLimit(action binance.SideType, pair, quantity, price,
 	var order *binance.CreateOrderResponse
 	var err error
 
-	req := a.client.NewCreateOrderService().Symbol(pair).
+	req := a.Client.NewCreateOrderService().Symbol(pair).
 		Side(action).Type(binance.OrderTypeLimit).
 		TimeInForce(binance.TimeInForceTypeGTC).Quantity(quantity).
 		Price(price)
@@ -100,7 +100,7 @@ func (a ApiInfo) PlaceOrderMarket(action binance.SideType, pair, quantity, mode 
 	var order *binance.CreateOrderResponse
 	var err error
 
-	req := a.client.NewCreateOrderService().Symbol(pair).
+	req := a.Client.NewCreateOrderService().Symbol(pair).
 		Side(action).Type(binance.OrderTypeMarket).QuoteOrderQty(quantity)
 
 	if mode == "real" {
@@ -114,11 +114,11 @@ func (a ApiInfo) PlaceOrderMarket(action binance.SideType, pair, quantity, mode 
 }
 
 func (a ApiInfo) GetOrders() ([]*binance.Order, error) {
-	return a.client.NewListOrdersService().Do(context.Background())
+	return a.Client.NewListOrdersService().Do(context.Background())
 }
 
 func (a ApiInfo) GetOpenOrders() ([]*binance.Order, error) {
-	return a.client.NewListOpenOrdersService().Do(context.Background())
+	return a.Client.NewListOpenOrdersService().Do(context.Background())
 }
 
 //func ListOpenOrder(pair string) {
@@ -183,15 +183,15 @@ func (a ApiInfo) GetBalance(asset string) (binance.Balance, error) {
 }
 
 func (a ApiInfo) GetInfoService() (*binance.ExchangeInfo, error) {
-	return a.client.NewExchangeInfoService().Do(context.Background())
+	return a.Client.NewExchangeInfoService().Do(context.Background())
 }
 
 func (a ApiInfo) GetAccountService() (*binance.Account, error) {
-	return a.client.NewGetAccountService().Do(context.Background())
+	return a.Client.NewGetAccountService().Do(context.Background())
 }
 
 func (a ApiInfo) GetTickerPrices() ([]*binance.SymbolPrice, error) {
-	return a.client.NewListPricesService().Do(context.Background())
+	return a.Client.NewListPricesService().Do(context.Background())
 }
 
 func (a ApiInfo) GetTickerPrice(pair string) (string, error) {

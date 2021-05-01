@@ -2,6 +2,7 @@ package binanceapi
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 	"strconv"
@@ -219,7 +220,60 @@ func WsGetCoinPrice(pair string, evt *binance.WsAggTradeEvent) {
 	}
 	_, _, err := binance.WsAggTradeServe(pair, wsDepthHandler, errHandler)
 	if err != nil {
-		log.Println(err)
 		return
 	}
+}
+
+func (a ApiInfo) GetTransactionPriceAtTime(pair string, time int64) (string, error) {
+	trades, err := a.Client.NewAggTradesService().
+		Symbol(pair).StartTime(time).EndTime(time).
+		Do(context.Background())
+	if err != nil {
+		return "", err
+	}
+
+	average := 0.0
+	for _, elem := range trades {
+		res, err := strconv.ParseFloat(elem.Price, 64)
+		if err != nil {
+			return "", err
+		}
+		average += res
+	}
+
+	average = average / float64(len(trades))
+
+	return fmt.Sprintf("%.8f", average), nil
+}
+
+func (a ApiInfo) GetLastFilledTransaction(pair string) (*binance.Order, error) {
+
+	orders, err := a.Client.NewListOrdersService().Symbol(pair).
+		Do(context.Background())
+	if err != nil {
+		return nil, err
+	}
+	if len(orders) == 0 {
+		return nil, nil
+	}
+
+	var tmp *binance.Order
+	tmp = orders[0]
+
+	for _, elem := range orders {
+		if elem.Time > tmp.Time && elem.Status == "FILLED" {
+			tmp = elem
+		}
+	}
+
+	return tmp, nil
+}
+
+func (a ApiInfo) GetFreeCoinAmount(asset string) (string, error) {
+	res, err := a.GetBalance(asset)
+	if err != nil {
+		return "", err
+	}
+
+	return res.Free, nil
 }

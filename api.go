@@ -2,8 +2,11 @@ package binanceapi
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
+	"net/http"
 	"os"
 	"strconv"
 
@@ -16,7 +19,62 @@ var (
 )
 
 type ApiInfo struct {
-	Client *binance.Client
+	Client  *binance.Client
+	lotSize SLotSize
+}
+
+type SLotSize struct {
+	FilterType string
+	MinQty     string
+	MaxQty     string
+	StepSize   string
+}
+
+type SExchangeInfo struct {
+	Timezone   string `json:"timezone"`
+	Servertime int64  `json:"serverTime"`
+	Ratelimits []struct {
+		Ratelimittype string `json:"rateLimitType"`
+		Interval      string `json:"interval"`
+		Intervalnum   int    `json:"intervalNum"`
+		Limit         int    `json:"limit"`
+	} `json:"rateLimits"`
+	Exchangefilters []interface{} `json:"exchangeFilters"`
+	Symbols         []struct {
+		Symbol                     string   `json:"symbol"`
+		Status                     string   `json:"status"`
+		Baseasset                  string   `json:"baseAsset"`
+		Baseassetprecision         int      `json:"baseAssetPrecision"`
+		Quoteasset                 string   `json:"quoteAsset"`
+		Quoteprecision             int      `json:"quotePrecision"`
+		Quoteassetprecision        int      `json:"quoteAssetPrecision"`
+		Basecommissionprecision    int      `json:"baseCommissionPrecision"`
+		Quotecommissionprecision   int      `json:"quoteCommissionPrecision"`
+		Ordertypes                 []string `json:"orderTypes"`
+		Icebergallowed             bool     `json:"icebergAllowed"`
+		Ocoallowed                 bool     `json:"ocoAllowed"`
+		Quoteorderqtymarketallowed bool     `json:"quoteOrderQtyMarketAllowed"`
+		Isspottradingallowed       bool     `json:"isSpotTradingAllowed"`
+		Ismargintradingallowed     bool     `json:"isMarginTradingAllowed"`
+		Filters                    []struct {
+			Filtertype       string `json:"filterType"`
+			Minprice         string `json:"minPrice,omitempty"`
+			Maxprice         string `json:"maxPrice,omitempty"`
+			Ticksize         string `json:"tickSize,omitempty"`
+			Multiplierup     string `json:"multiplierUp,omitempty"`
+			Multiplierdown   string `json:"multiplierDown,omitempty"`
+			Avgpricemins     int    `json:"avgPriceMins,omitempty"`
+			Minqty           string `json:"minQty,omitempty"`
+			Maxqty           string `json:"maxQty,omitempty"`
+			Stepsize         string `json:"stepSize,omitempty"`
+			Minnotional      string `json:"minNotional,omitempty"`
+			Applytomarket    bool   `json:"applyToMarket,omitempty"`
+			Limit            int    `json:"limit,omitempty"`
+			Maxnumorders     int    `json:"maxNumOrders,omitempty"`
+			Maxnumalgoorders int    `json:"maxNumAlgoOrders,omitempty"`
+		} `json:"filters"`
+		Permissions []string `json:"permissions"`
+	} `json:"symbols"`
 }
 
 func New() ApiInfo {
@@ -55,7 +113,7 @@ func (a ApiInfo) GetDepth(symbol, interval string, startTime int64, limit int) (
 }
 
 // GetCurrentPrice This function get the last price on binance
-func (a ApiInfo) GetCurrentPrice(symbol string) (*binance.SymbolPrice, error) {
+func (a ApiInfo) GetCurrentPrice(pair string) (*binance.SymbolPrice, error) {
 
 	prices, err := a.Client.NewListPricesService().Do(context.Background())
 	if err != nil {
@@ -63,12 +121,12 @@ func (a ApiInfo) GetCurrentPrice(symbol string) (*binance.SymbolPrice, error) {
 	}
 
 	for _, p := range prices {
-		if p.Symbol == symbol {
+		if p.Symbol == pair {
 			return p, err
 		}
 	}
 
-	log.Println("symbol not found:", symbol)
+	log.Println("symbol not found:", pair)
 	return nil, err
 }
 
@@ -95,7 +153,8 @@ func (a ApiInfo) PlaceOrderLimit(action binance.SideType, pair, quantity, price,
 }
 
 // PlaceOrderMarket will buy to the marketPrice
-// Quantity is in coin quantity. Example : buy AUDIOBTC, must init quantity with BTC amount
+// Quantity is in coin quantity.
+// Example : buy AUDIOBTC, must init quantity with BTC amount
 func (a ApiInfo) PlaceOrderMarket(action binance.SideType, pair, quantity, mode string) (*binance.CreateOrderResponse, error) {
 
 	var order *binance.CreateOrderResponse
@@ -103,6 +162,42 @@ func (a ApiInfo) PlaceOrderMarket(action binance.SideType, pair, quantity, mode 
 
 	req := a.Client.NewCreateOrderService().Symbol(pair).
 		Side(action).Type(binance.OrderTypeMarket).QuoteOrderQty(quantity)
+
+	if mode == "real" {
+		order, err = req.Do(context.Background())
+	} else if mode == "test" {
+		err = req.Test(context.Background())
+	}
+
+	return order, err
+
+}
+
+func (a ApiInfo) PlaceOrderMarketQuantity(action binance.SideType, pair, quantity, mode string) (*binance.CreateOrderResponse, error) {
+
+	var order *binance.CreateOrderResponse
+	var err error
+
+	req := a.Client.NewCreateOrderService().Symbol(pair).
+		Side(action).Type(binance.OrderTypeMarket).QuoteOrderQty(quantity)
+
+	if mode == "real" {
+		order, err = req.Do(context.Background())
+	} else if mode == "test" {
+		err = req.Test(context.Background())
+	}
+
+	return order, err
+
+}
+
+func (a ApiInfo) PlaceOrderMarketAmount(action binance.SideType, pair, quantity, mode string) (*binance.CreateOrderResponse, error) {
+
+	var order *binance.CreateOrderResponse
+	var err error
+
+	req := a.Client.NewCreateOrderService().Symbol(pair).
+		Side(action).Type(binance.OrderTypeMarket).Quantity(quantity)
 
 	if mode == "real" {
 		order, err = req.Do(context.Background())
@@ -246,6 +341,10 @@ func (a ApiInfo) GetTransactionPriceAtTime(pair string, time int64) (string, err
 	return fmt.Sprintf("%.8f", average), nil
 }
 
+func (a ApiInfo) GetTransactionByOrderID(orderID int64, pair string) (*binance.Order, error) {
+	return a.Client.NewGetOrderService().Symbol(pair).OrderID(orderID).Do(context.Background())
+}
+
 func (a ApiInfo) GetLastFilledTransaction(pair string) (*binance.Order, error) {
 
 	orders, err := a.Client.NewListOrdersService().Symbol(pair).
@@ -256,7 +355,6 @@ func (a ApiInfo) GetLastFilledTransaction(pair string) (*binance.Order, error) {
 	if len(orders) == 0 {
 		return nil, nil
 	}
-
 	var tmp *binance.Order
 	tmp = orders[0]
 
@@ -277,3 +375,67 @@ func (a ApiInfo) GetFreeCoinAmount(asset string) (string, error) {
 
 	return res.Free, nil
 }
+
+func getExchangeInfo() (SExchangeInfo, error) {
+	resp, err := http.Get("https://www.binance.com/api/v1/exchangeInfo")
+	if err != nil {
+		return SExchangeInfo{}, err
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return SExchangeInfo{}, err
+	}
+
+	var exchangeInfo SExchangeInfo
+
+	if err := json.Unmarshal([]byte(body), &exchangeInfo); err != nil {
+		return SExchangeInfo{}, err
+	}
+
+	return exchangeInfo, nil
+}
+
+func (a ApiInfo) GetLotSize(pair string) (SLotSize, error) {
+
+	exchangeInfo, err := getExchangeInfo()
+	if err != nil {
+		return SLotSize{}, err
+	}
+
+	for _, symbol := range exchangeInfo.Symbols {
+		if symbol.Symbol == pair {
+			for _, filter := range symbol.Filters {
+				if filter.Filtertype == "LOT_SIZE" {
+					return SLotSize{
+						FilterType: filter.Filtertype,
+						MinQty:     filter.Minqty,
+						MaxQty:     filter.Maxqty,
+						StepSize:   filter.Stepsize,
+					}, nil
+				}
+			}
+		}
+	}
+
+	return SLotSize{}, nil
+}
+
+// func (a ApiInfo) GetPriceAtSpecificTime(symbol string, timestamp int64) error {
+// 	ts := int64(timestamp)
+// 	trades, err := a.Client.NewAggTradesService().
+// 		Symbol(symbol).
+// 		// StartTime(ts).EndTime(ts + time.Hour.Milliseconds()).
+// 		StartTime(ts).EndTime(ts + time.Hour.Milliseconds()).
+// 		Do(context.Background())
+// 	if err != nil {
+// 		return err
+// 	}
+
+// 	pp.Println(trades)
+// 	// price := trades[0].Price
+// 	// fmt.Println(price)
+
+// 	return nil
+// }

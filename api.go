@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"time"
 
 	binance "github.com/adshao/go-binance/v2"
 )
@@ -75,6 +76,13 @@ type SExchangeInfo struct {
 		} `json:"filters"`
 		Permissions []string `json:"permissions"`
 	} `json:"symbols"`
+}
+
+type sFee struct {
+	MakerCommission  int64
+	TakerCommission  int64
+	BuyerCommission  int64
+	SellerCommission int64
 }
 
 func New() ApiInfo {
@@ -422,20 +430,30 @@ func (a ApiInfo) GetLotSize(pair string) (SLotSize, error) {
 	return SLotSize{}, nil
 }
 
-// func (a ApiInfo) GetPriceAtSpecificTime(symbol string, timestamp int64) error {
-// 	ts := int64(timestamp)
-// 	trades, err := a.Client.NewAggTradesService().
-// 		Symbol(symbol).
-// 		// StartTime(ts).EndTime(ts + time.Hour.Milliseconds()).
-// 		StartTime(ts).EndTime(ts + time.Hour.Milliseconds()).
-// 		Do(context.Background())
-// 	if err != nil {
-// 		return err
-// 	}
+func (a ApiInfo) GetFee() (sFee, error) {
+	account, err := a.GetAccountService()
+	if err != nil {
+		return sFee{}, err
+	}
 
-// 	pp.Println(trades)
-// 	// price := trades[0].Price
-// 	// fmt.Println(price)
+	var fee sFee
 
-// 	return nil
-// }
+	fee.BuyerCommission = account.BuyerCommission
+	fee.MakerCommission = account.MakerCommission
+	fee.SellerCommission = account.SellerCommission
+	fee.TakerCommission = account.TakerCommission
+
+	return fee, nil
+}
+
+func (a ApiInfo) GetPriceAtSpecificTime(symbol string, timestamp int64) (string, error) {
+	trades, err := a.Client.NewAggTradesService().
+		Symbol(symbol).
+		StartTime(timestamp).EndTime(timestamp + time.Hour.Milliseconds()).
+		Do(context.Background())
+	if err != nil {
+		return "", err
+	}
+
+	return trades[0].Price, nil
+}
